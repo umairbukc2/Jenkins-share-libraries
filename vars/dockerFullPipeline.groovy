@@ -51,6 +51,11 @@ def call(Map config = [:]) {
                 steps {
                     echo "🔥 Deploying Container..."
                     sh """
+                        # Pehle purane containers ko zabardasti remove karein (Clean Start)
+                        docker rm -f db_cont || true
+                        docker rm -f django_cont || true
+                        
+                        # Ab Compose down aur up karein
                         docker-compose down || true
                         docker-compose up -d
                     """
