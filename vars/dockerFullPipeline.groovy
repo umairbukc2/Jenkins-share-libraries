@@ -1,7 +1,7 @@
 def call(Map config = [:]) {
-    // Variables set kar rahe hain
-    def repoUrl = config.repoUrl ?: error("Repository URL is required!")
-    def imageName = config.imageName ?: error("Image Name is required!")
+    // Arguments receive kar rahe hain
+    def repoUrl = config.repoUrl ?: error("Repo URL missing")
+    def imageName = config.imageName ?: error("Image Name missing")
     def credsId = config.credsId ?: 'docker-hub-credentials'
     def branchName = config.branch ?: 'main'
 
@@ -14,59 +14,48 @@ def call(Map config = [:]) {
         }
 
         stages {
-            // --- STAGE 1 ---
+            // Stage 1: Code Clone
             stage('Checkout Code') {
                 steps {
-                    echo "Cloning Branch: ${branchName}"
+                    echo "Cloning Repo..."
                     git branch: branchName, url: repoUrl
                 }
-            } // <--- Yeh bracket zaroori hai (End of Stage 1)
+            }
 
-            // --- STAGE 2 ---
+            // Stage 2: Build Image (Yeh raha wo stage jo aapne maanga)
             stage('Build Docker Image') {
                 steps {
-                    echo "Building Image..."
+                    echo "🛠️ Building Docker Image..."
+                    // Yeh command image create karegi
                     sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
                 }
-            } // <--- Yeh bracket zaroori hai (End of Stage 2)
+            }
 
-            // --- STAGE 3 ---
-            stage('DockerHub Login & Push') {  // (Line 33 was failing here)
+            // Stage 3: Push to DockerHub
+            stage('Push Image') {
                 steps {
                     script {
-                        echo "Logging into DockerHub..."
-                        withCredentials([usernamePassword(credentialsId: credsId, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                        echo "🚀 Pushing to DockerHub..."
+                        withCredentials([usernamePassword(credentialsId: credsId, usernameVariable: 'USER', passwordVariable: 'PASS')]) {
                             sh """
-                                echo "\$DOCKER_PASS" | docker login -u "\$DOCKER_USER" --password-stdin
+                                echo "\$PASS" | docker login -u "\$USER" --password-stdin
                                 docker push ${IMAGE_NAME}:${IMAGE_TAG}
                             """
                         }
                     }
                 }
-            } // <--- Yeh bracket zaroori hai (End of Stage 3)
+            }
 
-            // --- STAGE 4 ---
+            // Stage 4: Deploy
             stage('Deploy') {
                 steps {
-                    echo "Deploying..."
-                    // Compose down/up command
-                    sh '''
+                    echo "🔥 Deploying Container..."
+                    sh """
                         docker-compose down || true
                         docker-compose up -d
-                    '''
+                    """
                 }
-            } // <--- Yeh bracket zaroori hai (End of Stage 4)
-
-        } // <--- End of 'stages'
-
-        post {
-            success {
-                echo '✅ Pipeline Success!'
             }
-            failure {
-                echo '❌ Pipeline Failed.'
-            }
-        } // <--- End of 'post'
-
-    } // <--- End of 'pipeline'
-} // <--- End of 'call' function
+        }
+    }
+}
